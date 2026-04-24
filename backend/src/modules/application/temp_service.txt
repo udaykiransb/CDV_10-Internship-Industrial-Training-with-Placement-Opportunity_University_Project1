@@ -1,0 +1,294 @@
+﻿const Application = require('./application.model');
+const Opportunity = require('../opportunity/opportunity.model');
+const Student = require('../student/student.model');
+const matchingService = require('../matching/matching.service');
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â/**
+ * Apply for an internship/placement opportunity (college-posted)
+ * Spec: Compute matchScore, initialize history with APPLIED
+ */
+const applyForOpportunity = async (studentId, opportunityId) => {
+    const opportunity = await Opportunity.findById(opportunityId);
+    if (!opportunity || !opportunity.isActive) throw new Error('Opportunity not found or inactive');
+
+    if (new Date() > new Date(opportunity.deadline)) throw new Error('Application deadline has passed');
+
+    const student = await Student.findOne({ userId: studentId });
+    if (!student) throw new Error('Student profile not found');
+
+    // Compute matchScore
+    const matchScore = matchingService.calculateMatchScore(student.skills, opportunity.requiredSkills);
+
+    const application = new Application({
+        studentId: student._id,
+        opportunityId,
+        type: opportunity.type === 'internship' ? 'Internship' : 'Placement',
+        status: 'APPLIED',
+        matchScore,
+        history: [{
+            status: 'APPLIED',
+            updatedBy: student._id,
+            timestamp: new Date()
+        }]
+    });
+
+    return await application.save();
+};
+
+/**
+ * Shortlist a candidate manually
+ */
+const shortlistCandidate = async (applicationId, userId) => {
+    return await Application.findByIdAndUpdate(
+        applicationId,
+        { 
+            $set: { status: 'SHORTLISTED' },
+            $push: { 
+                history: { status: 'SHORTLISTED', updatedBy: userId, timestamp: new Date() } 
+            }
+        },
+        { new: true }
+    );
+};
+
+/**
+ * Select a candidate manually
+ */
+const selectCandidate = async (applicationId, userId) => {
+    return await Application.findByIdAndUpdate(
+        applicationId,
+        { 
+            $set: { status: 'SELECTED' },
+            $push: { 
+                history: { status: 'SELECTED', updatedBy: userId, timestamp: new Date() } 
+            }
+        },
+        { new: true }
+    );
+};
+
+/**
+ * Bulk Shortlist top N candidates based on matchScore
+ */
+const bulkShortlistCandidates = async (opportunityId, topN, userId = null) => {
+    const applicants = await Application.find({ opportunityId, status: 'APPLIED' })
+        .sort({ matchScore: -1, appliedAt: 1 })
+        .limit(Number(topN));
+
+    const appIds = applicants.map(a => a._id);
+    
+    return await Application.updateMany(
+        { _id: { $in: appIds } },
+        { 
+            $set: { status: 'SHORTLISTED' },
+            $push: {
+                history: {
+                    status: 'SHORTLISTED',
+                    updatedBy: userId,
+                    timestamp: new Date()
+                }
+            }
+        }
+    );
+};{
+                    status: 'SHORTLISTED',
+                    updatedBy: null, // Automation
+                    updatedByModel: 'User',
+                    remarks: 'Automated bulk shortlisting based on match score',
+                    timestamp: new Date()
+                }
+            }
+        }
+    );
+};
+
+/**
+ * Get ordered timeline for an application
+ */
+const getTimeline = async (applicationId) => {
+    const application = await Application.findById(applicationId)
+        .select('history')
+        .populate({
+            path: 'history.updatedBy',
+            select: 'name email facultyName'
+        });
+    
+    if (!application) throw new Error('Application not found');
+    return application.history.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+};
+
+/**
+ * Get recruitment statistics for a specific opportunity
+ */
+const getOpportunityStats = async (opportunityId) => {
+    const opportunity = await Opportunity.findById(opportunityId);
+    if (!opportunity) throw new Error('Opportunity not found');
+
+    const totalStudents = await Student.countDocuments();
+    const appliedCount = await Application.countDocuments({ opportunityId });
+
+    let eligibleCount = totalStudents;
+    if (opportunity.requiredSkills && opportunity.requiredSkills.length > 0) {
+        eligibleCount = await Student.countDocuments({
+            skills: { $in: opportunity.requiredSkills }
+        });
+    }
+
+    return {
+        totalEnrolled: totalStudents,
+        applied: appliedCount,
+        eligible: eligibleCount,
+        yetToApply: Math.max(0, eligibleCount - appliedCount)
+    };
+};
+
+/**
+ * Get all applications for jobs posted by a specific recruiter
+ */
+const getRecruiterApplications = async (userId) => {
+    const opportunities = await Opportunity.find({ createdBy: userId });
+    const oppIds = opportunities.map(o => o._id);
+
+    return await Application.find({ opportunityId: { $in: oppIds } })
+        .populate('studentId')
+        .populate('opportunityId')
+        .sort({ appliedAt: -1 });
+};
+
+/**
+ * Get system-wide analytics for Admin Dashboard
+ */
+const getSystemAnalytics = async () => {
+    const [totalStudents, totalOpps, totalApps, placements] = await Promise.all([
+        Student.countDocuments(),
+        Opportunity.countDocuments(),
+        Application.countDocuments(),
+        Application.find({ status: 'Selected' }).populate('studentId')
+    ]);
+
+    const deptStats = await Student.aggregate([
+        { $group: { _id: '$department', count: { $sum: 1 } } }
+    ]);
+
+    const placementStats = await Application.aggregate([
+        { $match: { status: 'Selected' } },
+        {
+            $lookup: {
+                from: 'students',
+                localField: 'studentId',
+                foreignField: '_id',
+                as: 'student'
+            }
+        },
+        { $unwind: '$student' },
+        { $group: { _id: '$student.department', count: { $sum: 1 } } }
+    ]);
+
+    return {
+        totalEnrolled: totalStudents,
+        totalOpportunities: totalOpps,
+        totalApplications: totalApps,
+        totalPlacements: placements.length,
+        deptWiseStudents: deptStats,
+        deptWisePlacements: placementStats,
+        recentPlacements: placements.slice(-5).reverse()
+    };
+};
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// NEW INTERNSHIP FUNCTIONS
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+/**
+ * Submit an external internship (student-driven)
+ * Now creates an application with status 'SELECTED' to allow immediate approval request.
+ */
+const submitExternalInternship = async (studentId, data) => {
+    const student = await Student.findOne({ userId: studentId });
+    if (!student) {
+        throw new Error('Student profile not found');
+    }
+
+    const application = new Application({
+        studentId: student._id,
+        opportunityId: null,
+        type: 'Internship',
+        workflowType: 'INTERNSHIP_FLOW',
+        internshipSource: 'External',
+        status: 'SELECTED',
+        companyName: data.companyName,
+        role: data.role,
+        duration: data.duration,
+        stipend: data.stipend || '',
+        offerLetterURL: data.offerLetterURL || '',
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        history: [{
+            status: 'SELECTED',
+            updatedBy: student._id,
+            updatedByModel: 'Student',
+            remarks: 'External internship submitted (Pre-selected)',
+            timestamp: new Date()
+        }]
+    });
+
+    return await application.save();
+};
+
+/**
+ * Get all internship applications for a specific student
+ */
+const getStudentInternships = async (studentId) => {
+    return await Application.find({ studentId, type: 'Internship' })
+        .populate('opportunityId')
+        .sort({ appliedAt: -1 });
+};
+
+/**
+ * Add a progress log entry to an internship application
+ */
+const addProgressLog = async (applicationId, updateText) => {
+    return await Application.findByIdAndUpdate(
+        applicationId,
+        {
+            $push: {
+                progressLogs: { date: new Date(), updateText }
+            }
+        },
+        { new: true }
+    );
+};
+
+/**
+ * Mark an internship as completed
+ */
+const completeInternship = async (applicationId) => {
+    return await Application.findByIdAndUpdate(
+        applicationId,
+        {
+            $set: {
+                status: 'Completed',
+                internshipStatus: 'Completed',
+            }
+        },
+        { new: true }
+    );
+};
+
+module.exports = {
+    applyForOpportunity,
+    getStudentApplications,
+    getAllApplications,
+    updateStatus,
+    getOpportunityApplicants,
+    getOpportunityStats,
+    getRecruiterApplications,
+    getSystemAnalytics,
+    // New internship functions
+    submitExternalInternship,
+    getStudentInternships,
+    addProgressLog,
+    completeInternship,
+    bulkShortlistCandidates,
+    getTimeline,
+};
