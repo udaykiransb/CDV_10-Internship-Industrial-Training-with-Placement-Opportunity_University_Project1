@@ -1,0 +1,231 @@
+/* demo.css - Professional Government-Style UI Demo */
+:root {
+  --gov-primary: #003366;    /* Deep Navy Blue */
+  --gov-secondary: #002347;  /* Darker Navy */
+  --gov-accent: #ff9933;     /* Saffron/Indian Orange */
+  --gov-bg: #f5f7fa;         /* Light Blue-Gray Background */
+  --gov-card-bg: #ffffff;
+  --gov-text: #1a1a1a;
+  --gov-text-muted: #4a5568;
+  --gov-border: #d1dce5;
+}
+
+.demo-wrapper {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background-color: var(--gov-bg);
+  min-height: 100vh;
+  color: var(--gov-text);
+}
+
+/* Header inspired by National Internship Portal */
+.demo-header {
+  background: white;
+  border-bottom: 3px solid var(--gov-primary);
+  padding: 0.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.demo-logo-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.demo-logo-placeholder {
+  width: 50px;
+  height: 50px;
+  background: var(--gov-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  border-radius: 4px;
+}
+
+.demo-portal-title h1 {
+  font-size: 1.25rem;
+  font-weight: 850;
+  color: var(--gov-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.demo-portal-title p {
+  font-size: 0.75rem;
+  color: var(--gov-text-muted);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demo-main {
+  display: flex;
+  padding: 2rem;
+  gap: 2rem;
+}
+
+/* Sidebar */
+.demo-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.demo-sidebar-card {
+  background: white;
+  border: 1px solid var(--gov-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.demo-sidebar-header {
+  background: var(--gov-primary);
+  color: white;
+  padding: 1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.demo-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.demo-nav-item {
+  padding: 1rem;
+  border-bottom: 1px solid var(--gov-border);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.demo-nav-item:hover {
+  background: #f0f7ff;
+  color: var(--gov-primary);
+}
+
+.demo-nav-item.active {
+  background: #f0f7ff;
+  border-left: 4px solid var(--gov-primary);
+  color: var(--gov-primary);
+}
+
+/* Content Area */
+.demo-content {
+  flex: 1;
+}
+
+.demo-breadcrumb {
+  font-size: 0.8rem;
+  color: var(--gov-text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.demo-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.demo-stat-card {
+  background: white;
+  border-top: 4px solid var(--gov-primary);
+  border-right: 1px solid var(--gov-border);
+  border-bottom: 1px solid var(--gov-border);
+  border-left: 1px solid var(--gov-border);
+  padding: 1.5rem;
+  border-radius: 4px;
+}
+
+.demo-stat-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gov-text-muted);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.demo-stat-value {
+  font-size: 1.75rem;
+  font-weight: 850;
+  color: var(--gov-primary);
+}
+
+/* Table Area */
+.demo-section-card {
+  background: white;
+  border: 1px solid var(--gov-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.demo-section-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--gov-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.demo-section-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--gov-primary);
+}
+
+.demo-btn-primary {
+  background: var(--gov-primary);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.demo-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.demo-table th {
+  background: #f8fafc;
+  text-align: left;
+  padding: 1rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--gov-text-muted);
+  border-bottom: 2px solid var(--gov-border);
+}
+
+.demo-table td {
+  padding: 1rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--gov-border);
+}
+
+.demo-status-pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.status-active { background: #dcfce7; color: #166534; }
+.status-pending { background: #fefce8; color: #854d0e; }
